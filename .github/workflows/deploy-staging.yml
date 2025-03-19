@@ -1,0 +1,43 @@
+name: deploy - staging
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  release:
+    types:
+      - prereleased
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-image.yml
+    with:
+      push: true
+    secrets: inherit
+
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DO_REGISTRY_KEY }}
+
+      - name: Save DigitalOcean kubeconfig
+        run: doctl kubernetes cluster kubeconfig save ${{ vars.CLUSTER_NAME }}
+
+      - name: Update kustomization
+        run: |
+          cd k8s/overlays/staging
+          kustomize edit set image bot=${{ secrets.DO_REGISTRY }}/${{ vars.BOT_IMAGE }}:${{ needs.build.outputs.image_tag }}
+
+      - name: Deploy to staging
+        run: |
+          kubectl apply -k k8s/overlays/staging
+          kubectl rollout status deployment/oddlaws-bot-staging -n staging --timeout=2m
