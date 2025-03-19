@@ -1,0 +1,2 @@
+# oddbot
+An odd bot.
