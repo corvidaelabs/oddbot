@@ -29,4 +29,4 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: extractions/setup-just@v2
       - name: build
-        run: just build-api
+        run: just build
