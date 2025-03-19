@@ -5,3 +5,6 @@ dev:
 
 build:
     cargo build
+
+build-image:
+    docker build -t oddlaws-bot .

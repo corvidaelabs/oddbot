@@ -14,10 +14,10 @@ WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 
 # Copy all workspace members
-COPY labs/discord-bot ./labs/discord-bot
+COPY src/ ./src
 
 # Build the project for release
-RUN cargo build --release -p discord-bot
+RUN cargo build --release
 
 # Runtime stage
 FROM debian:bullseye-slim
@@ -33,10 +33,10 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy the binary from builder
-COPY --from=builder /app/target/release/discord-bot /usr/local/bin/oddlaws-bot
+COPY --from=builder /app/target/release/oddlaws-bot /usr/local/bin/oddlaws-bot
 
 # Expose the default port
 EXPOSE 3000
 
-# # Set the entrypoint
+# Set the entrypoint
 ENTRYPOINT ["/usr/local/bin/oddlaws-bot"]
