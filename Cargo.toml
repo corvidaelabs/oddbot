@@ -1,0 +1,15 @@
+[package]
+name = "discord-bot"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serenity = "0.12"
+tokio = { version = "1.21.2", features = ["macros", "rt-multi-thread"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+sqlx = { version = "0.7", features = [
+    "runtime-tokio-native-tls",
+    "postgres",
+    "time",
+] }
