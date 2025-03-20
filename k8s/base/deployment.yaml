@@ -30,10 +30,30 @@ spec:
                 secretKeyRef:
                   name: oddlaws-discord
                   key: token
+            - name: SCREENSHOTS_CHANNEL_ID
+              valueFrom:
+                secretKeyRef:
+                  name: oddlaws-bot-config
+                  key: screenshots-channel-id
+            - name: PUBLISHED_MEMBER_ROLE_ID
+              valueFrom:
+                secretKeyRef:
+                  name: oddlaws-bot-config
+                  key: published-member-role-id
+            - name: OBLIVION_SOCIAL_CHANNEL_ID
+              valueFrom:
+                secretKeyRef:
+                  name: oddlaws-bot-config
+                  key: oblivion-social-channel-id
+            - name: OBLIVION_SOCIAL_ROLE_ID
+              valueFrom:
+                secretKeyRef:
+                  name: oddlaws-bot-config
+                  key: oblivion-social-role-id
           resources:
             requests:
-              cpu: '100m'
-              memory: '256Mi'
+              cpu: "100m"
+              memory: "256Mi"
             limits:
-              cpu: '500m'
-              memory: '512Mi'
+              cpu: "500m"
+              memory: "512Mi"

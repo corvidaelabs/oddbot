@@ -5,12 +5,10 @@ namespace: staging
 nameSuffix: -staging
 
 resources:
-  - ../../base/web
-  - ../../base/bot
-  - ingress.yaml
+  - ../../base
 
 images:
-  - name: web
+  - name: bot
 
 labels:
   - includeSelectors: true

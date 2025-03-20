@@ -3,5 +3,4 @@ kind: ConfigMap
 metadata:
   name: oddlaws-bot-config
 data:
-  RUST_LOG: 'bot=info,chat=info'
-  ALLOWED_GUILD_IDS: '1252318542049579208'
+  RUST_LOG: "bot=info,chat=info"
