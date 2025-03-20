@@ -13,3 +13,4 @@ sqlx = { version = "0.8", features = [
     "postgres",
     "time",
 ] }
+thiserror = "2.0.12"
