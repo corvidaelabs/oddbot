@@ -1,16 +1,7 @@
 use std::sync::Arc;
 
+use oddbot::{db, prelude::*};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
-mod config;
-mod db;
-mod discord;
-mod error;
-mod event_stream;
-
-pub use config::Config;
-pub use discord::bot::DiscordBot;
-pub use error::OddbotError;
 
 #[tokio::main]
 async fn main() -> Result<(), OddbotError> {

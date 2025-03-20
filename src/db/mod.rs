@@ -1,7 +1,6 @@
+use crate::prelude::*;
 use sqlx::PgPool;
 use std::env;
-
-use crate::OddbotError;
 
 /// Create a new database pool
 pub async fn create_db_pool() -> Result<PgPool, OddbotError> {

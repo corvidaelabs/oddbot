@@ -1,5 +1,5 @@
 use super::handler::Handler;
-use crate::Config;
+use crate::prelude::*;
 use serenity::all::{ChannelId, GuildId, GuildMemberUpdateEvent, MessageId, Reaction};
 use serenity::async_trait;
 use serenity::model::channel::Message;

@@ -1,9 +1,7 @@
-use std::{env, sync::Arc};
-
+use crate::prelude::*;
 use serenity::{Client, all::GatewayIntents};
 use sqlx::PgPool;
-
-use crate::OddbotError;
+use std::{env, sync::Arc};
 
 use super::handler::Handler;
 

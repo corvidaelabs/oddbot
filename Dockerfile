@@ -33,10 +33,10 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy the binary from builder
-COPY --from=builder /app/target/release/oddlaws-bot /usr/local/bin/oddlaws-bot
+COPY --from=builder /app/target/release/oddbot /usr/local/bin/oddbot
 
 # Expose the default port
 EXPOSE 3000
 
 # Set the entrypoint
-ENTRYPOINT ["/usr/local/bin/oddlaws-bot"]
+ENTRYPOINT ["/usr/local/bin/oddbot"]
