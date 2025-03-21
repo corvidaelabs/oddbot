@@ -1521,6 +1521,7 @@ version = "0.1.0"
 dependencies = [
  "async-nats",
  "clap",
+ "futures",
  "serde",
  "serde_json",
  "serenity",

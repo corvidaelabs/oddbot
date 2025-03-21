@@ -19,29 +19,36 @@ impl EventHandler for Handler {
             // Later, we want probably add more complex logic to handle screenshots, like reaction-based permissions
             // Currently, we don't allow screenshots from users without a certain role
             if let Some(role_id) = Config::get_screenshot_role_id() {
-                self.handle_screenshot(&msg, role_id, screenshot_channel_id)
-                    .await;
+                self.handle_ss(&msg, role_id, screenshot_channel_id).await;
             }
         }
     }
 
     /// This event will be dispatched when the bot is ready
     async fn ready(&self, ctx: Context, ready: Ready) {
-        tracing::info!("Connected as {}", ready.user.name);
-        tracing::info!("Enabled guilds: {:?}", self.enabled_guilds);
+        tracing::info!("Oddbot is ready and connected as {}", ready.user.name);
+
+        // If no guild ID is configured we don't do anything
+        let Some(guild_id) = self.guild_id else {
+            tracing::warn!("No guild ID configured, skipping guild-related tasks");
+            return;
+        };
 
         // Save published members with configured member role id
-        if let Some(role_id) = Config::get_published_member_role_id() {
-            tracing::debug!("Grabbing members");
-            let members = self.get_members(ctx, role_id).await;
-            tracing::debug!("Members found {:?}", members);
+        if let Some(published_role) = Config::get_published_member_role_id() {
+            let published_members = self.get_members(ctx, published_role, guild_id).await;
+            tracing::debug!("Updating {} published members", published_members.len());
+            // Save all published members to the database
+            futures::future::join_all(published_members.into_iter().map(async |member| {
+                let member_id = member.user.id.to_string();
+                let member_name = member.user.name;
 
-            // Upsert members
-            for member in members {
-                self.upsert_published_member(member.user.id.to_string(), member.user.name)
-                    .await
-                    .expect("Failed to upsert member");
-            }
+                // We don't do anything with the member afterwards, so just trace an error if it fails
+                if let Err(err) = self.save_member(member_id, member_name).await {
+                    tracing::error!("Failed to upsert member: {}", err);
+                }
+            }))
+            .await;
         }
     }
 

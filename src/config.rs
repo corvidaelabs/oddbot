@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 pub struct Config;
 
 impl Config {
@@ -10,12 +8,17 @@ impl Config {
 
     /// Get the screenshot role ID
     pub fn get_screenshot_role_id() -> Option<u64> {
-        Self::parse_optional_u64("TARGET_ROLE_ID")
+        Self::parse_optional_u64("SCREENSHOT_ROLE_ID")
     }
 
     /// Get the published member role ID
     pub fn get_published_member_role_id() -> Option<u64> {
         Self::parse_optional_u64("PUBLISHED_MEMBER_ROLE_ID")
+    }
+
+    /// Get the guild ID
+    pub fn get_guild_id() -> Option<u64> {
+        Self::parse_optional_u64("GUILD_ID")
     }
 
     /// Parse an optional u64 from an environment variable
@@ -24,22 +27,5 @@ impl Config {
             id.parse()
                 .expect(format!("{} must be a valid u64", env_var).as_str())
         })
-    }
-
-    /// Get the allowed guild IDs
-    pub fn get_allowed_guild_ids() -> HashSet<u64> {
-        let guild_ids = std::env::var("ALLOWED_GUILD_IDS")
-            .map(|ids| {
-                ids.split(',')
-                    .map(|id| {
-                        id.trim()
-                            .parse()
-                            .expect(format!("{id} is not a valid u64").as_str())
-                    })
-                    .collect::<HashSet<_>>()
-            })
-            .unwrap_or_default();
-
-        guild_ids
     }
 }
