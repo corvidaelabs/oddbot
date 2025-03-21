@@ -30,7 +30,10 @@ async fn main() -> Result<(), OddbotError> {
             let event_stream = EventStream::connect(name, nats_client).await?;
             Some(Arc::new(event_stream))
         }
-        None => None,
+        None => {
+            tracing::warn!("Starting without event stream");
+            None
+        }
     };
 
     // Initialize our bot
