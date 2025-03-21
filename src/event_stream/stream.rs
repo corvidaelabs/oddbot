@@ -65,13 +65,13 @@ impl EventStream {
     }
 
     /// Publish an event to the stream
-    pub async fn publish<T>(&self, subject: &'static str, data: T) -> Result<(), OddbotError>
+    pub async fn publish<T>(&self, message: EventMessage<T>) -> Result<(), OddbotError>
     where
         T: Serialize,
     {
-        let data = serde_json::to_vec(&data).map_err(OddbotError::SerdeError)?;
+        let data = serde_json::to_vec(&message.payload).map_err(OddbotError::SerdeError)?;
         self.jetstream
-            .publish(subject, data.into())
+            .publish(message.subject, data.into())
             .await
             .map_err(OddbotError::StreamPublish)?;
 

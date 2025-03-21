@@ -21,6 +21,21 @@ impl Config {
         Self::parse_optional_u64("GUILD_ID")
     }
 
+    /// Get the oblivion social channel ID
+    pub fn get_oblivion_social_channel_id() -> Option<u64> {
+        Self::parse_optional_u64("OBLIVION_SOCIAL_CHANNEL_ID")
+    }
+
+    /// Get the oblivion social role ID
+    pub fn get_oblivion_social_role_id() -> Option<u64> {
+        Self::parse_optional_u64("OBLIVION_SOCIAL_ROLE_ID")
+    }
+
+    /// Get the event stream name
+    pub fn get_event_stream_name() -> Option<String> {
+        std::env::var("EVENT_STREAM_NAME").ok()
+    }
+
     /// Parse an optional u64 from an environment variable
     pub fn parse_optional_u64(env_var: &str) -> Option<u64> {
         std::env::var(env_var).ok().map(|id| {

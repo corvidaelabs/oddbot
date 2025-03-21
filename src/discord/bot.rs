@@ -9,15 +9,19 @@ use super::handler::Handler;
 pub struct DiscordBot {
     pub client: Client,
     db_pool: Arc<PgPool>,
+    event_stream: Option<Arc<EventStream>>,
 }
 
 impl DiscordBot {
-    pub async fn init(db_pool: Arc<PgPool>) -> Result<Self, OddbotError> {
+    pub async fn init(
+        db_pool: Arc<PgPool>,
+        event_stream: Option<Arc<EventStream>>,
+    ) -> Result<Self, OddbotError> {
         // Get our discord token
         let discord_token = env::var("DISCORD_TOKEN").map_err(OddbotError::EnvVar)?;
 
         // Create a handler for handling Discord events
-        let handler = Handler::new(db_pool.clone());
+        let handler = Handler::new(db_pool.clone(), event_stream.clone());
 
         // Declare our intents for events we're going to listen to
         let intents = GatewayIntents::GUILDS
@@ -32,6 +36,10 @@ impl DiscordBot {
             .await
             .expect("Error creating client");
 
-        Ok(Self { client, db_pool })
+        Ok(Self {
+            client,
+            db_pool,
+            event_stream,
+        })
     }
 }

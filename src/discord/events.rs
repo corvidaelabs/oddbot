@@ -22,6 +22,15 @@ impl EventHandler for Handler {
                 self.handle_ss(&msg, role_id, screenshot_channel_id).await;
             }
         }
+
+        // Having an oblivion social channel ID presumes that we have oblivion social enabled
+        if let Some(oblivion_channel) = Config::get_oblivion_social_channel_id() {
+            // We only allow interaction from users with a certain role
+            if let Some(role_id) = Config::get_oblivion_social_role_id() {
+                self.handle_oblivion_message(&msg, role_id, oblivion_channel)
+                    .await;
+            }
+        }
     }
 
     /// This event will be dispatched when the bot is ready

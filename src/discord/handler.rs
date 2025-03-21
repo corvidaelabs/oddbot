@@ -1,4 +1,5 @@
-use crate::{config::Config, error::OddbotError};
+use crate::prelude::*;
+use crate::{config::Config, error::OddbotError, prelude::EventStream, skeever::squeak::Squeak};
 use serenity::all::{Context, GuildId, Member, Message};
 use sqlx::{PgPool, types::time::OffsetDateTime};
 use std::sync::Arc;
@@ -7,11 +8,12 @@ use std::sync::Arc;
 pub struct Handler {
     pub guild_id: Option<GuildId>,
     pub db_pool: Arc<PgPool>,
+    pub event_stream: Option<Arc<EventStream>>,
 }
 
 impl Handler {
     /// Create a new handler instance
-    pub fn new(db_pool: Arc<PgPool>) -> Self {
+    pub fn new(db_pool: Arc<PgPool>, event_stream: Option<Arc<EventStream>>) -> Self {
         let guild_id = {
             // Check if we're configured to run against a specific guild
             let guild_id = Config::get_guild_id();
@@ -21,7 +23,11 @@ impl Handler {
             }
         };
 
-        Self { guild_id, db_pool }
+        Self {
+            guild_id,
+            db_pool,
+            event_stream,
+        }
     }
 
     /// Start-up initialization when the bot is ready
@@ -48,19 +54,9 @@ impl Handler {
     }
 
     /// Validates a screenshot message and saves it to the database
-    pub async fn handle_ss(&self, msg: &Message, target_role_id: u64, screenshot_channel_id: u64) {
-        // Check if message is in the screenshots channel
-        if msg.channel_id.get() != screenshot_channel_id {
-            return;
-        }
-
-        // Make sure the message has a member associated with it
-        let Some(member) = &msg.member else {
-            return;
-        };
-
-        // Make sure the member has the target role
-        if !member.roles.iter().any(|role| role.get() == target_role_id) {
+    pub async fn handle_ss(&self, msg: &Message, role_id: u64, channel_id: u64) {
+        let will_process_message = self.should_process_message(msg, role_id, channel_id);
+        if !will_process_message {
             return;
         }
 
@@ -134,6 +130,25 @@ impl Handler {
         }
     }
 
+    /// Utility function for checking the right role and channel
+    pub fn should_process_message(&self, msg: &Message, role_id: u64, channel_id: u64) -> bool {
+        // Make sure we're in the right channel
+        let correct_channel = msg.channel_id.get() == channel_id;
+        let correct_role = {
+            let Some(member) = &msg.member else {
+                return false;
+            };
+
+            if !member.roles.iter().any(|role| role.get() == role_id) {
+                return false;
+            }
+
+            true
+        };
+
+        correct_channel && correct_role
+    }
+
     /// Saves a member into the database
     pub async fn save_member(&self, discord_id: String, name: String) -> Result<(), sqlx::Error> {
         tracing::debug!("Upserting published member with name: {}", name);
@@ -154,5 +169,41 @@ impl Handler {
         .await?;
 
         Ok(())
+    }
+
+    /// Sends an oblivion message as a "squeak" (post) to the event stream
+    pub async fn handle_oblivion_message(&self, msg: &Message, role_id: u64, channel_id: u64) {
+        let will_process_message = self.should_process_message(msg, role_id, channel_id);
+        if !will_process_message {
+            return;
+        }
+
+        if let Err(err) = self.publish_message(msg).await {
+            tracing::error!("Failed to publish squeak: {}", err);
+        }
+    }
+
+    /// Publishes a message as a "squeak" (post) to the event stream
+    pub async fn publish_message(&self, msg: &Message) -> Result<(), OddbotError> {
+        // We need an event stream to be able to publish messages
+        let Some(event_stream) = self.event_stream.as_ref() else {
+            return Err(OddbotError::InvalidConfig(
+                "Event stream not initialized".to_string(),
+            ));
+        };
+
+        // Build the squeak out of the message
+        let squeak = Squeak::builder()
+            .content(msg.content.clone())
+            .user(msg.author.name.clone())
+            .await
+            .map_err(OddbotError::SqueakPublish)?;
+
+        // Convert the squeak into an Event Stream message
+        let message = EventMessage::from(squeak);
+
+        tracing::debug!("Publishing squeak {} to event stream", message.payload.id);
+        // Publish the message to the event stream
+        Ok(event_stream.publish(message).await?)
     }
 }
