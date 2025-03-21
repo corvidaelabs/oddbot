@@ -25,7 +25,7 @@ async fn main() -> Result<(), OddbotError> {
     // Shards will automatically attempt to reconnect, and will perform exponential backoff until
     // it reconnects.
     if let Err(why) = oddbot.client.start().await {
-        println!("Discord Client error: {why:?}");
+        tracing::error!("Discord Client error: {why:?}");
     }
 
     Ok(())
