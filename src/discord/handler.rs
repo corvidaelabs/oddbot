@@ -114,20 +114,17 @@ impl Handler {
         tracing::debug!("Attempting to fetch guild members for guild {}", guild_id);
 
         // Get the members of the guild
-        match guild_id.members(&ctx.http, None, None).await {
-            Ok(members) => {
-                tracing::debug!("Fetched {} members", members.len());
-                // Only grab members that have our target role
-                members
-                    .into_iter()
-                    .filter(|member| member.roles.iter().any(|role| role.get() == with_role_id))
-                    .collect()
-            }
-            Err(e) => {
-                tracing::error!("Failed to fetch members for guild {}: {:?}", guild_id, e);
-                Vec::new()
-            }
-        }
+        let Ok(members) = guild_id.members(&ctx.http, None, None).await else {
+            tracing::error!("Failed to fetch members for guild {}", guild_id);
+            return Vec::new();
+        };
+
+        tracing::debug!("Fetched {} members", members.len());
+        // Only grab members that have our target role
+        members
+            .into_iter()
+            .filter(|member| member.roles.iter().any(|role| role.get() == with_role_id))
+            .collect()
     }
 
     /// Utility function for checking the right role and channel
