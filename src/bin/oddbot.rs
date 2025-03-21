@@ -9,7 +9,7 @@ async fn main() -> Result<(), OddbotError> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "discord_bot=debug,serenity=debug".into()),
+                .unwrap_or_else(|_| "oddbot=debug,serenity=debug".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
