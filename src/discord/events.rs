@@ -26,29 +26,9 @@ impl EventHandler for Handler {
 
     /// This event will be dispatched when the bot is ready
     async fn ready(&self, ctx: Context, ready: Ready) {
-        tracing::info!("Oddbot is ready and connected as {}", ready.user.name);
-
-        // If no guild ID is configured we don't do anything
-        let Some(guild_id) = self.guild_id else {
-            tracing::warn!("No guild ID configured, skipping guild-related tasks");
-            return;
-        };
-
-        // Save published members with configured member role id
-        if let Some(published_role) = Config::get_published_member_role_id() {
-            let published_members = self.get_members(ctx, published_role, guild_id).await;
-            tracing::debug!("Updating {} published members", published_members.len());
-            // Save all published members to the database
-            futures::future::join_all(published_members.into_iter().map(async |member| {
-                let member_id = member.user.id.to_string();
-                let member_name = member.user.name;
-
-                // We don't do anything with the member afterwards, so just trace an error if it fails
-                if let Err(err) = self.save_member(member_id, member_name).await {
-                    tracing::error!("Failed to upsert member: {}", err);
-                }
-            }))
-            .await;
+        tracing::info!("Ready and connected as {}", ready.user.name);
+        if let Err(err) = self.init(ctx).await {
+            panic!("Failed bot initialization: {}", err);
         }
     }
 

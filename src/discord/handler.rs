@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::{config::Config, error::OddbotError};
 use serenity::all::{Context, GuildId, Member, Message};
 use sqlx::{PgPool, types::time::OffsetDateTime};
 use std::sync::Arc;
@@ -22,6 +22,29 @@ impl Handler {
         };
 
         Self { guild_id, db_pool }
+    }
+
+    /// Start-up initialization when the bot is ready
+    pub async fn init(&self, ctx: Context) -> Result<(), OddbotError> {
+        // We only initialize if we're configured to run against a specific guild
+        let Some(guild_id) = self.guild_id else {
+            return Ok(());
+        };
+
+        // Save published members with configured member role id
+        if let Some(published_role) = Config::get_published_member_role_id() {
+            let published_members = self.get_members(ctx, published_role, guild_id).await;
+            tracing::debug!("Updating {} published members", published_members.len());
+            // Save all published members to the database
+            futures::future::join_all(published_members.into_iter().map(async |member| {
+                let member_id = member.user.id.to_string();
+                let member_name = member.user.name;
+                self.save_member(member_id, member_name).await
+            }))
+            .await;
+        }
+
+        Ok(())
     }
 
     /// Validates a screenshot message and saves it to the database
