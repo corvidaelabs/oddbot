@@ -19,7 +19,15 @@ impl EventHandler for Handler {
             // Later, we want probably add more complex logic to handle screenshots, like reaction-based permissions
             // Currently, we don't allow screenshots from users without a certain role
             if let Some(role_id) = Config::get_screenshot_role_id() {
-                self.handle_screenshot(&msg, role_id, screenshot_channel_id)
+                self.handle_ss(&msg, role_id, screenshot_channel_id).await;
+            }
+        }
+
+        // Having an oblivion social channel ID presumes that we have oblivion social enabled
+        if let Some(oblivion_channel) = Config::get_oblivion_social_channel_id() {
+            // We only allow interaction from users with a certain role
+            if let Some(role_id) = Config::get_oblivion_social_role_id() {
+                self.handle_oblivion_message(&msg, role_id, oblivion_channel)
                     .await;
             }
         }
@@ -27,21 +35,9 @@ impl EventHandler for Handler {
 
     /// This event will be dispatched when the bot is ready
     async fn ready(&self, ctx: Context, ready: Ready) {
-        tracing::info!("Connected as {}", ready.user.name);
-        tracing::info!("Enabled guilds: {:?}", self.enabled_guilds);
-
-        // Save published members with configured member role id
-        if let Some(role_id) = Config::get_published_member_role_id() {
-            tracing::debug!("Grabbing members");
-            let members = self.get_members(ctx, role_id).await;
-            tracing::debug!("Members found {:?}", members);
-
-            // Upsert members
-            for member in members {
-                self.upsert_published_member(member.user.id.to_string(), member.user.name)
-                    .await
-                    .expect("Failed to upsert member");
-            }
+        tracing::info!("Ready and connected as {}", ready.user.name);
+        if let Err(err) = self.init(ctx).await {
+            panic!("Failed bot initialization: {}", err);
         }
     }
 

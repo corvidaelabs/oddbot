@@ -30,11 +30,16 @@ spec:
                 secretKeyRef:
                   name: oddlaws-discord
                   key: token
-            - name: SCREENSHOTS_CHANNEL_ID
+            - name: SCREENSHOT_CHANNEL_ID
               valueFrom:
                 secretKeyRef:
                   name: oddlaws-bot-config
-                  key: screenshots-channel-id
+                  key: screenshot-channel-id
+            - name: SCREENSHOT_ROLE_ID
+              valueFrom:
+                secretKeyRef:
+                  name: oddlaws-bot-config
+                  key: screenshot-role-id
             - name: PUBLISHED_MEMBER_ROLE_ID
               valueFrom:
                 secretKeyRef:

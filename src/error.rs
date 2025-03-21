@@ -1,3 +1,4 @@
+use crate::skeever::squeak::SqueakError;
 use async_nats::{
     ConnectErrorKind,
     jetstream::context::{CreateStreamError, DeleteStreamError, PublishError},
@@ -20,6 +21,8 @@ pub enum OddbotError {
     NatsConnect(#[from] async_nats::error::Error<ConnectErrorKind>),
     #[error("Environment variable error")]
     EnvVar(#[from] std::env::VarError),
-    #[error("Invalid configuration")]
-    InvalidConfig,
+    #[error("Invalid configuration: {0}")]
+    InvalidConfig(String),
+    #[error("Squeak publish error")]
+    SqueakPublish(SqueakError),
 }

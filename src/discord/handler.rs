@@ -1,64 +1,80 @@
-use crate::config::Config;
+use crate::prelude::*;
+use crate::{config::Config, error::OddbotError, prelude::EventStream, skeever::squeak::Squeak};
 use serenity::all::{Context, GuildId, Member, Message};
 use sqlx::{PgPool, types::time::OffsetDateTime};
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 
 /// Default handler for the Discord bot
 pub struct Handler {
-    pub enabled_guilds: HashSet<GuildId>,
+    pub guild_id: Option<GuildId>,
     pub db_pool: Arc<PgPool>,
+    pub event_stream: Option<Arc<EventStream>>,
 }
 
 impl Handler {
     /// Create a new handler instance
-    pub fn new(db_pool: Arc<PgPool>) -> Self {
-        let enabled_guilds = Config::get_allowed_guild_ids()
-            .into_iter()
-            .map(|id| GuildId::new(id))
-            .collect();
+    pub fn new(db_pool: Arc<PgPool>, event_stream: Option<Arc<EventStream>>) -> Self {
+        let guild_id = {
+            // Check if we're configured to run against a specific guild
+            let guild_id = Config::get_guild_id();
+            match guild_id {
+                Some(id) => Some(GuildId::new(id)),
+                None => None,
+            }
+        };
 
         Self {
-            enabled_guilds,
+            guild_id,
             db_pool,
+            event_stream,
         }
     }
 
-    /// Handle a screenshot message
-    pub async fn handle_screenshot(
-        &self,
-        msg: &Message,
-        target_role_id: u64,
-        screenshot_channel_id: u64,
-    ) {
-        // Check if message is in the screenshots channel
-        if msg.channel_id.get() != screenshot_channel_id {
+    /// Start-up initialization when the bot is ready
+    pub async fn init(&self, ctx: Context) -> Result<(), OddbotError> {
+        // We only initialize if we're configured to run against a specific guild
+        let Some(guild_id) = self.guild_id else {
+            return Ok(());
+        };
+
+        // Save published members with configured member role id
+        if let Some(published_role) = Config::get_published_member_role_id() {
+            let published_members = self.get_members(ctx, published_role, guild_id).await;
+            tracing::debug!("Updating {} published members", published_members.len());
+            // Save all published members to the database
+            futures::future::join_all(published_members.into_iter().map(async |member| {
+                let member_id = member.user.id.to_string();
+                let member_name = member.user.name;
+                self.save_member(member_id, member_name).await
+            }))
+            .await;
+        }
+
+        Ok(())
+    }
+
+    /// Validates a screenshot message and saves it to the database
+    pub async fn handle_ss(&self, msg: &Message, role_id: u64, channel_id: u64) {
+        let will_process_message = self.should_process_message(msg, role_id, channel_id);
+        if !will_process_message {
             return;
         }
 
-        // Check if user has target role
-        if let Some(member) = &msg.member {
-            if !member.roles.iter().any(|role| role.get() == target_role_id) {
-                return;
-            }
+        // Map each screenshot into a separate promise so we can save them concurrently
+        let promises = msg.attachments.iter().map(|attachment| {
+            self.save_ss(
+                msg.author.id.to_string(),
+                msg.author.name.clone(),
+                attachment.url.clone(),
+            )
+        });
 
-            // Get attachments/media from message
-            for attachment in &msg.attachments {
-                if let Err(e) = self
-                    .save_screenshot(
-                        msg.author.id.to_string(),
-                        msg.author.name.clone(),
-                        attachment.url.clone(),
-                    )
-                    .await
-                {
-                    tracing::error!("Failed to save screenshot: {:?}", e);
-                }
-            }
-        }
+        // Await all promises concurrently
+        futures::future::join_all(promises).await;
     }
 
     /// Saves a screenshot to the database
-    async fn save_screenshot(
+    async fn save_ss(
         &self,
         discord_id: String,
         username: String,
@@ -89,44 +105,49 @@ impl Handler {
     }
 
     /// Get members with a specific role ID
-    pub async fn get_members(&self, ctx: Context, with_role_id: u64) -> Vec<Member> {
-        let mut to_publish_members = Vec::new();
+    pub async fn get_members(
+        &self,
+        ctx: Context,
+        with_role_id: u64,
+        guild_id: GuildId,
+    ) -> Vec<Member> {
+        tracing::debug!("Attempting to fetch guild members for guild {}", guild_id);
 
-        for guild_id in &self.enabled_guilds {
-            tracing::debug!("Attempting to fetch guild {}", guild_id);
+        // Get the members of the guild
+        let Ok(members) = guild_id.members(&ctx.http, None, None).await else {
+            tracing::error!("Failed to fetch members for guild {}", guild_id);
+            return Vec::new();
+        };
 
-            match guild_id.members(&ctx.http, None, None).await {
-                Ok(members) => {
-                    // Filter out only users with target role
-                    let members_with_roles: Vec<_> = members
-                        .into_iter()
-                        .filter(|member| member.roles.iter().any(|role| role.get() == with_role_id))
-                        .collect();
-                    if members_with_roles.len() == 0 {
-                        tracing::warn!("No members with target role found in guild {}", guild_id);
-                        return to_publish_members;
-                    }
-                    to_publish_members.extend(members_with_roles.into_iter());
-                }
-                Err(e) => {
-                    tracing::error!("Failed to fetch members for guild {}: {:?}", guild_id, e)
-                }
-            }
-        }
-
-        tracing::debug!(
-            "Fetched {} members with target role",
-            to_publish_members.len()
-        );
-        to_publish_members
+        tracing::debug!("Fetched {} members", members.len());
+        // Only grab members that have our target role
+        members
+            .into_iter()
+            .filter(|member| member.roles.iter().any(|role| role.get() == with_role_id))
+            .collect()
     }
 
-    /// Upserts a published member into the database
-    pub async fn upsert_published_member(
-        &self,
-        discord_id: String,
-        name: String,
-    ) -> Result<(), sqlx::Error> {
+    /// Utility function for checking the right role and channel
+    pub fn should_process_message(&self, msg: &Message, role_id: u64, channel_id: u64) -> bool {
+        // Make sure we're in the right channel
+        let correct_channel = msg.channel_id.get() == channel_id;
+        let correct_role = {
+            let Some(member) = &msg.member else {
+                return false;
+            };
+
+            if !member.roles.iter().any(|role| role.get() == role_id) {
+                return false;
+            }
+
+            true
+        };
+
+        correct_channel && correct_role
+    }
+
+    /// Saves a member into the database
+    pub async fn save_member(&self, discord_id: String, name: String) -> Result<(), sqlx::Error> {
         tracing::debug!("Upserting published member with name: {}", name);
         let now = OffsetDateTime::now_utc();
 
@@ -145,5 +166,41 @@ impl Handler {
         .await?;
 
         Ok(())
+    }
+
+    /// Sends an oblivion message as a "squeak" (post) to the event stream
+    pub async fn handle_oblivion_message(&self, msg: &Message, role_id: u64, channel_id: u64) {
+        let will_process_message = self.should_process_message(msg, role_id, channel_id);
+        if !will_process_message {
+            return;
+        }
+
+        if let Err(err) = self.publish_message(msg).await {
+            tracing::error!("Failed to publish squeak: {}", err);
+        }
+    }
+
+    /// Publishes a message as a "squeak" (post) to the event stream
+    pub async fn publish_message(&self, msg: &Message) -> Result<(), OddbotError> {
+        // We need an event stream to be able to publish messages
+        let Some(event_stream) = self.event_stream.as_ref() else {
+            return Err(OddbotError::InvalidConfig(
+                "Event stream not initialized".to_string(),
+            ));
+        };
+
+        // Build the squeak out of the message
+        let squeak = Squeak::builder()
+            .content(msg.content.clone())
+            .user(msg.author.name.clone())
+            .await
+            .map_err(OddbotError::SqueakPublish)?;
+
+        // Convert the squeak into an Event Stream message
+        let message = EventMessage::from(squeak);
+
+        tracing::debug!("Publishing squeak {} to event stream", message.payload.id);
+        // Publish the message to the event stream
+        Ok(event_stream.publish(message).await?)
     }
 }

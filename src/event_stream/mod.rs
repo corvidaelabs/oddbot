@@ -1,3 +1,4 @@
+pub mod message;
 pub mod nats;
 pub mod stream;
 

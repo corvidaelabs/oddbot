@@ -4,3 +4,4 @@ pub mod discord;
 pub mod error;
 pub mod event_stream;
 pub mod prelude;
+pub mod skeever;
