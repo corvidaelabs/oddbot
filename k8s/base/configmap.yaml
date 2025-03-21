@@ -4,3 +4,6 @@ metadata:
   name: oddlaws-bot-config
 data:
   RUST_LOG: "bot=info,chat=info"
+  NATS_URL: "nats://nats.staging.svc.cluster.local:4222"
+  EVENT_STREAM_NAME: "ODDLAWS_EVENTS"
+  EVENT_STREAM_PREFIX: "oddlaws.events"
