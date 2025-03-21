@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-
+use crate::prelude::*;
 use crate::skeever::squeak::Squeak;
+use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
 pub struct EventMessage<T>
@@ -11,11 +11,10 @@ where
     pub payload: T,
 }
 
-const EVENT_PREFIX: &str = "oddlaws.events";
-
 impl From<Squeak> for EventMessage<Squeak> {
     fn from(squeak: Squeak) -> Self {
-        let subject = format!("{}.skeever.post", EVENT_PREFIX);
+        let prefix = Config::get_event_stream_prefix().unwrap_or("oddlaws.events".to_string());
+        let subject = format!("{}.skeever.post", prefix);
         EventMessage {
             subject,
             payload: squeak,
