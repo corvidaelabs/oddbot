@@ -50,8 +50,10 @@ impl EventHandler for Handler {
             tracing::debug!("Received command interaction: {command:#?}");
 
             let content = match command.data.name.as_str() {
-                "modal" => {
-                    super::commands::modal::run(&ctx, &command).await.unwrap();
+                "register" => {
+                    super::commands::register::run(&ctx, &command)
+                        .await
+                        .unwrap();
                     None
                 }
                 _ => Some("not implemented :(".to_string()),

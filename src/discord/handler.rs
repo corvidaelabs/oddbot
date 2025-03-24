@@ -42,7 +42,7 @@ impl Handler {
         };
 
         // Register the slash commands
-        let commands = vec![commands::modal::register()];
+        let commands = vec![commands::register::register()];
         let commands = guild_id.set_commands(&ctx.http, commands).await;
         tracing::debug!("Registered guild slash commands: {commands:?}");
 
