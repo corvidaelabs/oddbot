@@ -1,8 +1,12 @@
 use crate::prelude::*;
-use crate::{config::Config, error::OddbotError, prelude::EventStream, skeever::squeak::Squeak};
+use crate::{
+    config::OddbotConfig, error::OddbotError, prelude::EventStream, skeever::squeak::Squeak,
+};
 use serenity::all::{Context, GuildId, Member, Message};
 use sqlx::{PgPool, types::time::OffsetDateTime};
 use std::sync::Arc;
+
+use super::commands;
 
 /// Default handler for the Discord bot
 pub struct Handler {
@@ -16,7 +20,7 @@ impl Handler {
     pub fn new(db_pool: Arc<PgPool>, event_stream: Option<Arc<EventStream>>) -> Self {
         let guild_id = {
             // Check if we're configured to run against a specific guild
-            let guild_id = Config::get_guild_id();
+            let guild_id = OddbotConfig::get_guild_id();
             match guild_id {
                 Some(id) => Some(GuildId::new(id)),
                 None => None,
@@ -37,8 +41,13 @@ impl Handler {
             return Ok(());
         };
 
+        // Register the slash commands
+        let commands = vec![commands::modal::register()];
+        let commands = guild_id.set_commands(&ctx.http, commands).await;
+        tracing::debug!("Registered guild slash commands: {commands:?}");
+
         // Save published members with configured member role id
-        if let Some(published_role) = Config::get_published_member_role_id() {
+        if let Some(published_role) = OddbotConfig::get_published_member_role_id() {
             let published_members = self.get_members(ctx, published_role, guild_id).await;
             tracing::debug!("Updating {} published members", published_members.len());
             // Save all published members to the database

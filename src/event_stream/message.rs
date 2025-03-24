@@ -1,4 +1,3 @@
-use crate::prelude::*;
 use crate::skeever::squeak::Squeak;
 use serde::{Deserialize, Serialize};
 
@@ -13,8 +12,7 @@ where
 
 impl From<Squeak> for EventMessage<Squeak> {
     fn from(squeak: Squeak) -> Self {
-        let prefix = Config::get_event_stream_prefix().unwrap_or("oddlaws.events".to_string());
-        let subject = format!("{}.skeever.post", prefix);
+        let subject = Squeak::get_subject();
         EventMessage {
             subject,
             payload: squeak,

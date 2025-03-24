@@ -1,6 +1,9 @@
 use super::handler::Handler;
 use crate::prelude::*;
-use serenity::all::{ChannelId, GuildId, GuildMemberUpdateEvent, MessageId, Reaction};
+use serenity::all::{
+    ChannelId, CreateInteractionResponse, CreateInteractionResponseMessage, GuildId,
+    GuildMemberUpdateEvent, Interaction, MessageId, Reaction,
+};
 use serenity::async_trait;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
@@ -14,19 +17,19 @@ impl EventHandler for Handler {
     async fn message(&self, _ctx: Context, msg: Message) {
         tracing::debug!("Received message: {:?}", msg);
         // Having a screenshot channel ID presumes that we want to handle screenshots
-        if let Some(screenshot_channel_id) = Config::get_screenshot_channel_id() {
+        if let Some(screenshot_channel_id) = OddbotConfig::get_screenshot_channel_id() {
             // The default behavior is to only allow screenshots from users with a certain role
             // Later, we want probably add more complex logic to handle screenshots, like reaction-based permissions
             // Currently, we don't allow screenshots from users without a certain role
-            if let Some(role_id) = Config::get_screenshot_role_id() {
+            if let Some(role_id) = OddbotConfig::get_screenshot_role_id() {
                 self.handle_ss(&msg, role_id, screenshot_channel_id).await;
             }
         }
 
         // Having an oblivion social channel ID presumes that we have oblivion social enabled
-        if let Some(oblivion_channel) = Config::get_oblivion_social_channel_id() {
+        if let Some(oblivion_channel) = OddbotConfig::get_oblivion_social_channel_id() {
             // We only allow interaction from users with a certain role
-            if let Some(role_id) = Config::get_oblivion_social_role_id() {
+            if let Some(role_id) = OddbotConfig::get_oblivion_social_role_id() {
                 self.handle_oblivion_message(&msg, role_id, oblivion_channel)
                     .await;
             }
@@ -38,6 +41,29 @@ impl EventHandler for Handler {
         tracing::info!("Ready and connected as {}", ready.user.name);
         if let Err(err) = self.init(ctx).await {
             panic!("Failed bot initialization: {}", err);
+        }
+    }
+
+    /// This event will be dispatched when an interaction is created
+    async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
+        if let Interaction::Command(command) = interaction {
+            tracing::debug!("Received command interaction: {command:#?}");
+
+            let content = match command.data.name.as_str() {
+                "modal" => {
+                    super::commands::modal::run(&ctx, &command).await.unwrap();
+                    None
+                }
+                _ => Some("not implemented :(".to_string()),
+            };
+
+            if let Some(content) = content {
+                let data = CreateInteractionResponseMessage::new().content(content);
+                let builder = CreateInteractionResponse::Message(data);
+                if let Err(why) = command.create_response(&ctx.http, builder).await {
+                    tracing::error!("Cannot respond to slash command: {why}");
+                }
+            }
         }
     }
 
