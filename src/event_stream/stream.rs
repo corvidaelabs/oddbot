@@ -1,7 +1,10 @@
 use crate::prelude::*;
 use async_nats::{
     Client as NatsClient,
-    jetstream::{self, Context},
+    jetstream::{
+        self, Context,
+        consumer::{Consumer, pull},
+    },
 };
 use serde::Serialize;
 use std::time::Duration;
@@ -76,5 +79,24 @@ impl EventStream {
             .map_err(OddbotError::StreamPublish)?;
 
         Ok(())
+    }
+
+    /// Creates a new consumer
+    pub async fn create_consumer(
+        &self,
+        name: Option<String>,
+        filter: String,
+    ) -> Result<Consumer<pull::Config>, OddbotError> {
+        let config = jetstream::consumer::pull::Config {
+            durable_name: name,
+            filter_subject: filter,
+            max_deliver: 3,
+            ..Default::default()
+        };
+
+        self.jetstream
+            .create_consumer_on_stream(config, self.stream_name.to_string())
+            .await
+            .map_err(OddbotError::StreamConsumerCreate)
     }
 }

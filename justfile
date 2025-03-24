@@ -17,3 +17,10 @@ start-server:
 
 start-bot:
     cargo run --bin oddbot
+
+
+start-oblivion-server:
+    cargo run --bin oblivion-server
+
+dev-server:
+    watchexec -i ".github/**" -i "k8s/**" -i "target/**" just start-oblivion-server

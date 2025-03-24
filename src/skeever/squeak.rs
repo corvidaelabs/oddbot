@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::config::OddbotConfig;
+
 pub struct SqueakBuilder {
     content: Option<String>,
     user_name: Option<String>,
@@ -63,7 +65,7 @@ impl IntoFuture for SqueakBuilder {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Squeak {
     pub id: ulid::Ulid,
     pub content: String,
@@ -74,9 +76,15 @@ impl Squeak {
     pub fn builder() -> SqueakBuilder {
         SqueakBuilder::default()
     }
+
+    pub fn get_subject() -> String {
+        let prefix =
+            OddbotConfig::get_event_stream_prefix().unwrap_or("oddlaws.events".to_string());
+        format!("{}.skeever.post", prefix)
+    }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct User {
     pub name: String,
 }

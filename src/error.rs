@@ -1,7 +1,10 @@
 use crate::skeever::squeak::SqueakError;
 use async_nats::{
     ConnectErrorKind,
-    jetstream::context::{CreateStreamError, DeleteStreamError, PublishError},
+    jetstream::{
+        context::{CreateStreamError, DeleteStreamError, PublishError},
+        stream::ConsumerError,
+    },
 };
 use thiserror::Error;
 
@@ -25,4 +28,6 @@ pub enum OddbotError {
     InvalidConfig(String),
     #[error("Squeak publish error")]
     SqueakPublish(SqueakError),
+    #[error("Error creating consumer")]
+    StreamConsumerCreate(#[from] ConsumerError),
 }

@@ -1,6 +1,6 @@
-pub struct Config;
+pub struct OddbotConfig;
 
-impl Config {
+impl OddbotConfig {
     /// Get the screenshot channel ID
     pub fn get_screenshot_channel_id() -> Option<u64> {
         Self::parse_optional_u64("SCREENSHOT_CHANNEL_ID")
