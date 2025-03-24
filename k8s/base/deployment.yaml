@@ -30,6 +30,11 @@ spec:
                 secretKeyRef:
                   name: oddlaws-discord
                   key: token
+            - name: GUILD_ID
+              valueFrom:
+                secretKeyRef:
+                  name: oddlaws-bot-config
+                  key: guild-id
             - name: SCREENSHOT_CHANNEL_ID
               valueFrom:
                 secretKeyRef:
