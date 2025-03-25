@@ -1,3 +1,4 @@
+use crate::discord::character::OblivionError;
 use crate::prelude::*;
 use crate::{
     config::OddbotConfig, error::OddbotError, prelude::EventStream, skeever::squeak::Squeak,
@@ -6,18 +7,24 @@ use serenity::all::{Context, GuildId, Member, Message};
 use sqlx::{PgPool, types::time::OffsetDateTime};
 use std::sync::Arc;
 
-use super::commands;
+use super::character::CharacterStore;
+use super::commands::oblivion;
 
 /// Default handler for the Discord bot
 pub struct Handler {
     pub guild_id: Option<GuildId>,
     pub db_pool: Arc<PgPool>,
     pub event_stream: Option<Arc<EventStream>>,
+    pub character_store: Arc<CharacterStore>,
 }
 
 impl Handler {
     /// Create a new handler instance
-    pub fn new(db_pool: Arc<PgPool>, event_stream: Option<Arc<EventStream>>) -> Self {
+    pub fn new(
+        db_pool: Arc<PgPool>,
+        event_stream: Option<Arc<EventStream>>,
+        character_store: Arc<CharacterStore>,
+    ) -> Self {
         let guild_id = {
             // Check if we're configured to run against a specific guild
             let guild_id = OddbotConfig::get_guild_id();
@@ -31,6 +38,7 @@ impl Handler {
             guild_id,
             db_pool,
             event_stream,
+            character_store,
         }
     }
 
@@ -42,7 +50,11 @@ impl Handler {
         };
 
         // Register the slash commands
-        let commands = vec![commands::register::register()];
+        let commands = vec![
+            oblivion::commands::register_character(),
+            oblivion::commands::get_character(),
+            oblivion::commands::delete_character(),
+        ];
         let commands = guild_id.set_commands(&ctx.http, commands).await;
         tracing::debug!("Registered guild slash commands: {commands:?}");
 
@@ -198,10 +210,19 @@ impl Handler {
             ));
         };
 
+        // Check if the user has a character
+        let discord_id = msg.author.id.to_string();
+        let character = self.character_store.get_character(&discord_id).await?;
+        let message = msg.content.clone();
+
+        let Some(character) = character else {
+            return Err(OblivionError::NoCharacterFound(discord_id).into());
+        };
+
         // Build the squeak out of the message
         let squeak = Squeak::builder()
-            .content(msg.content.clone())
-            .user(msg.author.name.clone())
+            .content(message)
+            .user(character.name)
             .await
             .map_err(OddbotError::SqueakPublish)?;
 

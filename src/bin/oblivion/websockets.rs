@@ -10,12 +10,15 @@ pub async fn forward_events_to_websockets(
     let skeever_subject = Squeak::get_subject();
     let consumer_name = format!("oblivion_websocket_consumer_{}", ulid::Ulid::new());
 
-    let Ok(consumer) = listener
+    let consumer = match listener
         .create_consumer(Some(consumer_name), skeever_subject)
         .await
-    else {
-        tracing::error!("Failed to create consumer");
-        return;
+    {
+        Ok(consumer) => consumer,
+        Err(e) => {
+            tracing::error!("Failed to create consumer: {:?}", e);
+            return;
+        }
     };
 
     loop {
@@ -48,6 +51,10 @@ pub async fn forward_events_to_websockets(
                         tracing::error!("Failed to broadcast event: {}", e);
                     }
                 },
+            };
+
+            if let Err(e) = message.ack().await {
+                tracing::error!("Failed to ack message: {}", e);
             }
         }
 

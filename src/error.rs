@@ -1,4 +1,4 @@
-use crate::skeever::squeak::SqueakError;
+use crate::{discord, skeever::squeak::SqueakError};
 use async_nats::{
     ConnectErrorKind,
     jetstream::{
@@ -30,4 +30,8 @@ pub enum OddbotError {
     SqueakPublish(SqueakError),
     #[error("Error creating consumer")]
     StreamConsumerCreate(#[from] ConsumerError),
+    #[error("Error with Oblivion functionality")]
+    OblivionError(#[from] discord::character::OblivionError),
+    #[error("Error with serenity functionality")]
+    Serenity(#[from] serenity::Error),
 }

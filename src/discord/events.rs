@@ -51,9 +51,33 @@ impl EventHandler for Handler {
 
             let content = match command.data.name.as_str() {
                 "register" => {
-                    super::commands::register::run(&ctx, &command)
-                        .await
-                        .unwrap();
+                    super::commands::oblivion::character::save_character(
+                        &ctx,
+                        &command,
+                        &self.character_store,
+                    )
+                    .await
+                    .unwrap();
+                    None
+                }
+                "whoami" => {
+                    super::commands::oblivion::character::get_character(
+                        &ctx,
+                        &command,
+                        &self.character_store,
+                    )
+                    .await
+                    .unwrap();
+                    None
+                }
+                "die" => {
+                    super::commands::oblivion::character::delete_character(
+                        &ctx,
+                        &command,
+                        &self.character_store,
+                    )
+                    .await
+                    .unwrap();
                     None
                 }
                 _ => Some("not implemented :(".to_string()),

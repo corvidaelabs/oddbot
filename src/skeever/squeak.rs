@@ -30,7 +30,7 @@ impl SqueakBuilder {
     }
 
     /// Builds the squeak
-    fn build(self) -> Result<Squeak, SqueakError> {
+    pub fn build(self) -> Result<Squeak, SqueakError> {
         let Some(user_name) = self.user_name else {
             return Err(SqueakError::UserNameRequired);
         };

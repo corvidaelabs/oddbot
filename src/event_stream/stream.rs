@@ -2,17 +2,17 @@ use crate::prelude::*;
 use async_nats::{
     Client as NatsClient,
     jetstream::{
-        self, Context,
+        self, Context as Jetstream,
         consumer::{Consumer, pull},
+        stream::RetentionPolicy,
     },
 };
 use serde::Serialize;
 use std::time::Duration;
 
-#[allow(dead_code)] // TODO: Remove once EventStream is used
 pub struct EventStream {
     stream_name: String,
-    jetstream: Context,
+    jetstream: Jetstream,
 }
 
 impl EventStream {
