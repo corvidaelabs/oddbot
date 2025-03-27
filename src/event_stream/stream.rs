@@ -4,7 +4,6 @@ use async_nats::{
     jetstream::{
         self, Context as Jetstream,
         consumer::{Consumer, pull},
-        stream::RetentionPolicy,
     },
 };
 use serde::Serialize;
@@ -86,11 +85,14 @@ impl EventStream {
         &self,
         name: Option<String>,
         filter: String,
+        deliver_policy: Option<jetstream::consumer::DeliverPolicy>,
     ) -> Result<Consumer<pull::Config>, OddbotError> {
         let config = jetstream::consumer::pull::Config {
             durable_name: name,
             filter_subject: filter,
             max_deliver: 3,
+            // Add delivery policy for historical messages
+            deliver_policy: deliver_policy.unwrap_or(jetstream::consumer::DeliverPolicy::New),
             ..Default::default()
         };
 

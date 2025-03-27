@@ -4,7 +4,7 @@ use serenity::prelude::*;
 use serenity::utils::CreateQuickModal;
 
 use crate::{
-    discord::character::{Character, CharacterStore},
+    discord::character::{Character, CharacterStore, OblivionError},
     error::OddbotError,
 };
 
@@ -21,12 +21,17 @@ pub async fn save_character(
     let user_id = interaction.user.id;
     let inputs = response.inputs;
     let (name, description) = (&inputs[0], &inputs[1]);
+    let Some(avatar_url) = interaction.user.avatar_url() else {
+        return Err(OblivionError::CharacterMissingData("avatar url".into()).into());
+    };
+    let avatar_url = avatar_url.to_string();
 
     // Save the character to the store
     Character::builder()
         .discord_id(user_id.to_string())
         .name(name.to_string())
         .description(description.to_string())
+        .avatar_url(avatar_url)
         .build()?
         .save(&store)
         .await?;

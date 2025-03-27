@@ -18,8 +18,6 @@ pub enum OblivionError {
     GetCharacter(#[from] kv::EntryError),
     #[error("Failed to delete character")]
     DeleteCharacter(#[from] kv::DeleteError),
-    #[error("No character found for user {0}")]
-    NoCharacterFound(String),
 }
 
 #[derive(Deserialize, Serialize)]
@@ -27,6 +25,7 @@ pub struct Character {
     pub name: String,
     description: String,
     discord_id: String,
+    pub avatar_url: Option<String>,
 }
 
 #[derive(Default)]
@@ -34,6 +33,7 @@ pub struct CharacterBuilder {
     discord_id: Option<String>,
     name: Option<String>,
     description: Option<String>,
+    avatar_url: Option<String>,
 }
 
 impl CharacterBuilder {
@@ -49,6 +49,11 @@ impl CharacterBuilder {
 
     pub fn description(mut self, description: String) -> Self {
         self.description = Some(description);
+        self
+    }
+
+    pub fn avatar_url(mut self, avatar_url: String) -> Self {
+        self.avatar_url = Some(avatar_url);
         self
     }
 
@@ -70,6 +75,7 @@ impl CharacterBuilder {
             name,
             description,
             discord_id,
+            avatar_url: self.avatar_url,
         };
 
         Ok(character)
@@ -136,6 +142,14 @@ impl CharacterStore {
             .map_err(OblivionError::SaveCharacter)?;
 
         Ok(())
+    }
+
+    /// Gets the avatar URL for a character
+    pub fn get_avatar_url(user_id: u64, avatar_hash: &str) -> String {
+        format!(
+            "https://cdn.discordapp.com/avatars/{}/{}.png",
+            user_id, avatar_hash
+        )
     }
 
     /// Gets a character based on the discord id

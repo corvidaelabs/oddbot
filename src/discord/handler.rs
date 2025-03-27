@@ -216,15 +216,24 @@ impl Handler {
         let message = msg.content.clone();
 
         let Some(character) = character else {
-            return Err(OblivionError::NoCharacterFound(discord_id).into());
+            tracing::warn!(
+                "User {} ({}) does not have a character, skipping squeak",
+                msg.author.name,
+                discord_id,
+            );
+            return Ok(());
         };
 
         // Build the squeak out of the message
-        let squeak = Squeak::builder()
-            .content(message)
-            .user(character.name)
-            .await
-            .map_err(OddbotError::SqueakPublish)?;
+        let mut squeak_builder = Squeak::builder().content(message).user(character.name);
+
+        // Append the avatar URL if available
+        if let Some(avatar_url) = msg.author.avatar_url() {
+            squeak_builder = squeak_builder.avatar(avatar_url);
+        }
+
+        // Build the squeak
+        let squeak = squeak_builder.await.map_err(OddbotError::SqueakPublish)?;
 
         // Convert the squeak into an Event Stream message
         let message = EventMessage::from(squeak);
