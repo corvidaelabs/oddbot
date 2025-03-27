@@ -1,4 +1,4 @@
-use oddbot::{db, event_stream::create_nats_client, prelude::*};
+use oddbot::{db, discord::character::CharacterStore, nats::create_nats_client, prelude::*};
 use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -21,8 +21,8 @@ async fn main() -> Result<(), OddbotError> {
 
     let event_stream = match event_stream_name {
         Some(name) => {
-            let nats_client = create_nats_client().await?;
-            let event_stream = EventStream::connect(name, nats_client).await?;
+            let event_nats = create_nats_client().await?;
+            let event_stream = EventStream::connect(name, event_nats).await?;
             Some(Arc::new(event_stream))
         }
         None => {
@@ -31,8 +31,12 @@ async fn main() -> Result<(), OddbotError> {
         }
     };
 
+    // Connect to our Oblivion character store
+    let character_nats = create_nats_client().await?;
+    let character_store = Arc::new(CharacterStore::new(character_nats).await?);
+
     // Initialize our bot
-    let mut oddbot = DiscordBot::init(pool, event_stream).await?;
+    let mut oddbot = DiscordBot::init(pool, event_stream, character_store).await?;
 
     // Finally, start a single shard, and start listening to events.
     //

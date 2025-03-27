@@ -1,4 +1,4 @@
-use oddbot::{event_stream::create_nats_client, prelude::*, skeever::squeak::Squeak};
+use oddbot::{nats::create_nats_client, prelude::*, skeever::squeak::Squeak};
 use std::sync::Arc;
 use tokio::sync::broadcast;
 

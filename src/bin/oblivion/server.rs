@@ -71,7 +71,24 @@ async fn ws_handler(
 /// Handles individual websocket connections
 async fn handle_socket(socket: ws::WebSocket, state: AppState) {
     let mut event_receiver = state.event_sender.subscribe();
-    let (mut sender, mut receiver) = socket.split();
+    let (sender, mut receiver) = socket.split();
+
+    // Send historical messages first and get the sender back
+    let mut sender = match websockets::send_historical_messages(
+        state
+            .get_event_stream()
+            .await
+            .expect("Could not create connection to event stream"),
+        sender,
+    )
+    .await
+    {
+        Ok(sender) => sender,
+        Err(e) => {
+            tracing::error!("Failed to send historical messages: {:?}", e);
+            return;
+        }
+    };
 
     // Handle incoming messages in a separate task
     let receiver_task = tokio::spawn(async move {
@@ -102,7 +119,7 @@ async fn handle_socket(socket: ws::WebSocket, state: AppState) {
             {
                 break;
             }
-            tracing::debug!("Successfuly squeaked {:?}", &squeak);
+            tracing::debug!("Successfully squeaked {:?}", &squeak);
         }
     });
 

@@ -1,6 +1,8 @@
-use futures::StreamExt;
-use oddbot::{prelude::EventStream, skeever::squeak::Squeak};
-use std::sync::Arc;
+use async_nats::jetstream;
+use axum::extract::ws::{Message, WebSocket};
+use futures::{SinkExt, StreamExt, stream::SplitSink};
+use oddbot::{error::OddbotError, prelude::EventStream, skeever::squeak::Squeak};
+use std::{sync::Arc, time::Duration};
 use tokio::sync::broadcast;
 
 pub async fn forward_events_to_websockets(
@@ -8,14 +10,20 @@ pub async fn forward_events_to_websockets(
     event_sender: broadcast::Sender<Squeak>,
 ) {
     let skeever_subject = Squeak::get_subject();
-    let consumer_name = format!("oblivion_websocket_consumer_{}", ulid::Ulid::new());
 
-    let Ok(consumer) = listener
-        .create_consumer(Some(consumer_name), skeever_subject)
+    let consumer = match listener
+        .create_consumer(
+            Some("oblivion_websocket_main_consumer".to_string()),
+            skeever_subject.clone(),
+            Some(jetstream::consumer::DeliverPolicy::New),
+        )
         .await
-    else {
-        tracing::error!("Failed to create consumer");
-        return;
+    {
+        Ok(consumer) => consumer,
+        Err(e) => {
+            tracing::error!("Failed to create consumer: {:?}", e);
+            return;
+        }
     };
 
     loop {
@@ -48,10 +56,85 @@ pub async fn forward_events_to_websockets(
                         tracing::error!("Failed to broadcast event: {}", e);
                     }
                 },
+            };
+
+            if let Err(e) = message.ack().await {
+                tracing::error!("Failed to ack message: {}", e);
             }
         }
 
         // Add a small delay between fetches
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct WebSocketConfig {
+    pub historical_batch_size: usize,
+    pub historical_max_age: Option<Duration>,
+    pub historical_batch_delay: Duration,
+}
+
+impl Default for WebSocketConfig {
+    fn default() -> Self {
+        Self {
+            historical_batch_size: 100,
+            historical_max_age: Some(Duration::from_secs(60 * 60 * 24)), // 24 hours
+            historical_batch_delay: Duration::from_millis(50),
+        }
+    }
+}
+
+pub async fn send_historical_messages(
+    listener: Arc<EventStream>,
+    mut ws_sender: SplitSink<WebSocket, Message>,
+) -> Result<SplitSink<WebSocket, Message>, OddbotError> {
+    let skeever_subject = Squeak::get_subject();
+    let batch_size = 100;
+
+    let temp_consumer = listener
+        .create_consumer(
+            None,
+            skeever_subject,
+            Some(jetstream::consumer::DeliverPolicy::All),
+        )
+        .await?;
+
+    loop {
+        let mut messages = temp_consumer
+            .fetch()
+            .max_messages(batch_size)
+            .messages()
+            .await?;
+
+        let mut batch_count = 0;
+        while let Some(message) = messages.next().await {
+            let Ok(message) = message else {
+                tracing::error!("Failed to fetch message");
+                continue;
+            };
+            let squeak = serde_json::from_slice::<Squeak>(&message.payload)?;
+
+            ws_sender
+                .send(Message::Text(serde_json::to_string(&squeak)?.into()))
+                .await
+                .map_err(|e| OddbotError::WebsocketSend(e.to_string()))?;
+
+            message
+                .ack()
+                .await
+                .map_err(|e| OddbotError::WebsocketSend(e.to_string()))?; // Convert ack error
+
+            batch_count += 1;
+        }
+
+        if batch_count < batch_size {
+            break; // No more messages
+        }
+
+        // Optional: Add a small delay between batches to prevent overwhelming the client
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+
+    Ok(ws_sender)
 }

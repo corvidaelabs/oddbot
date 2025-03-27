@@ -2,17 +2,16 @@ use crate::prelude::*;
 use async_nats::{
     Client as NatsClient,
     jetstream::{
-        self, Context,
+        self, Context as Jetstream,
         consumer::{Consumer, pull},
     },
 };
 use serde::Serialize;
 use std::time::Duration;
 
-#[allow(dead_code)] // TODO: Remove once EventStream is used
 pub struct EventStream {
     stream_name: String,
-    jetstream: Context,
+    jetstream: Jetstream,
 }
 
 impl EventStream {
@@ -86,11 +85,14 @@ impl EventStream {
         &self,
         name: Option<String>,
         filter: String,
+        deliver_policy: Option<jetstream::consumer::DeliverPolicy>,
     ) -> Result<Consumer<pull::Config>, OddbotError> {
         let config = jetstream::consumer::pull::Config {
             durable_name: name,
             filter_subject: filter,
             max_deliver: 3,
+            // Add delivery policy for historical messages
+            deliver_policy: deliver_policy.unwrap_or(jetstream::consumer::DeliverPolicy::New),
             ..Default::default()
         };
 

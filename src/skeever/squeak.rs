@@ -6,6 +6,7 @@ use crate::config::OddbotConfig;
 pub struct SqueakBuilder {
     content: Option<String>,
     user_name: Option<String>,
+    avatar_url: Option<String>,
 }
 
 #[derive(Error, Debug)]
@@ -14,6 +15,8 @@ pub enum SqueakError {
     UserNameRequired,
     #[error("Content is required")]
     ContentRequired,
+    #[error("Avatar URL is required")]
+    AvatarUrlRequired,
 }
 
 impl SqueakBuilder {
@@ -29,8 +32,14 @@ impl SqueakBuilder {
         self
     }
 
+    /// Sets the avatar URL of the squeak
+    pub fn avatar(mut self, url: String) -> Self {
+        self.avatar_url = Some(url);
+        self
+    }
+
     /// Builds the squeak
-    fn build(self) -> Result<Squeak, SqueakError> {
+    pub fn build(self) -> Result<Squeak, SqueakError> {
         let Some(user_name) = self.user_name else {
             return Err(SqueakError::UserNameRequired);
         };
@@ -39,10 +48,17 @@ impl SqueakBuilder {
             return Err(SqueakError::ContentRequired);
         };
 
+        let Some(avatar_url) = self.avatar_url else {
+            return Err(SqueakError::AvatarUrlRequired);
+        };
+
         Ok(Squeak {
             id: ulid::Ulid::new(),
             content,
-            author: User { name: user_name },
+            author: User {
+                name: user_name,
+                avatar_url,
+            },
         })
     }
 }
@@ -52,6 +68,7 @@ impl Default for SqueakBuilder {
         SqueakBuilder {
             content: None,
             user_name: None,
+            avatar_url: None,
         }
     }
 }
@@ -87,4 +104,5 @@ impl Squeak {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct User {
     pub name: String,
+    pub avatar_url: String,
 }

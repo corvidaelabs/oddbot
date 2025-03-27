@@ -1,5 +1,5 @@
 use clap::Parser;
-use oddbot::{event_stream::create_nats_client, prelude::*};
+use oddbot::{nats::create_nats_client, prelude::*};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
