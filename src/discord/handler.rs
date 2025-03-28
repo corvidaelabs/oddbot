@@ -1,4 +1,3 @@
-use crate::discord::character::OblivionError;
 use crate::prelude::*;
 use crate::{
     config::OddbotConfig, error::OddbotError, prelude::EventStream, skeever::squeak::Squeak,

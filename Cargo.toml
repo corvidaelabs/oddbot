@@ -9,6 +9,10 @@ name = "oblivion-server"
 path = "src/bin/oblivion/server.rs"
 
 [[bin]]
+name = "clear-stream"
+path = "src/bin/clear-stream.rs"
+
+[[bin]]
 name = "oddbot"
 path = "src/bin/oddbot.rs"
 
