@@ -1,4 +1,4 @@
-name: deploy - staging
+name: deploy - production
 
 on:
   push:
@@ -18,7 +18,7 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    environment: staging
+    environment: production
     needs: build
     steps:
       - name: Checkout code
@@ -34,10 +34,10 @@ jobs:
 
       - name: Update kustomization
         run: |
-          cd k8s/overlays/staging
+          cd k8s/overlays/production
           kustomize edit set image bot=${{ secrets.DO_REGISTRY }}/${{ vars.BOT_IMAGE }}:${{ needs.build.outputs.image_tag }}
 
-      - name: Deploy to staging
+      - name: Deploy to production
         run: |
-          kubectl apply -k k8s/overlays/staging
-          kubectl rollout status deployment/oddlaws-bot-staging -n staging --timeout=2m
+          kubectl apply -k k8s/overlays/production
+          kubectl rollout status deployment/oddlaws-bot-production -n production --timeout=2m
