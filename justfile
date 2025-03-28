@@ -26,4 +26,4 @@ dev-server:
     watchexec -i ".github/**" -i "k8s/**" -i "target/**" just start-oblivion-server
 
 clear-stream:
-    cargo run --bin clear-stream -- --stream-name="ODDLAWS_EVENTS"
+    nats stream purge ODDLAWS_EVENTS
