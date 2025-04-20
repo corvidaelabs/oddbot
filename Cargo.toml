@@ -14,7 +14,7 @@ path = "src/bin/oddbot.rs"
 
 [dependencies]
 serenity = { version = "0.12", features = ["collector"] }
-tokio = { version = "1.21.2", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.44.2", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 sqlx = { version = "0.8", features = [
